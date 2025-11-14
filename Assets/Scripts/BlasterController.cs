@@ -85,10 +85,6 @@ public class BlasterController : MonoBehaviour
             muzzleFlash.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             muzzleFlash.Play();
         }
-
-        // TEST CODE
-        ScoreManager.Instance.AddPoints(100);
-        // TEST CODE
         Vector3 dir = (point - muzzle.position).normalized;
         Quaternion rot = Quaternion.LookRotation(dir);
         GameObject bolt = Instantiate(projectilePrefab, muzzle.position, rot);

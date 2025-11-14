@@ -11,5 +11,13 @@ public class PhotonBolt : MonoBehaviour
     {
         if (other.CompareTag("Player")) return;
         Destroy(gameObject);
+
+        var enemy = other.GetComponent<EnemyHealth>();
+        if (enemy != null)
+        {
+            enemy.TakeDamage(damage);
+            // spawn impact VFX, sound...
+            Destroy(gameObject);
+        }
     }
 }
