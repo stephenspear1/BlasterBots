@@ -7627,7 +7627,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: e4b25b23b63cd4b509dabdb22471f633, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.3
+      value: 0.212
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: e4b25b23b63cd4b509dabdb22471f633, type: 3}
       propertyPath: m_LocalPosition.z
@@ -8282,7 +8282,7 @@ MonoBehaviour:
   - waveName: Wave 1
     enemyPrefab: {fileID: 2221813642870138099, guid: c2131175400fb4bfda0798af6aa6d73e, type: 3}
     enemyCount: 10
-    enemySpeed: 10
+    enemySpeed: 3
     enemyDamage: 20
     enemyHealth: 30
     spawnBoss: 0
@@ -8292,7 +8292,7 @@ MonoBehaviour:
   - waveName: Wave 2
     enemyPrefab: {fileID: 2221813642870138099, guid: c2131175400fb4bfda0798af6aa6d73e, type: 3}
     enemyCount: 12
-    enemySpeed: 15
+    enemySpeed: 5
     enemyDamage: 30
     enemyHealth: 80
     spawnBoss: 0
@@ -8302,7 +8302,7 @@ MonoBehaviour:
   - waveName: Wave 3
     enemyPrefab: {fileID: 2221813642870138099, guid: c2131175400fb4bfda0798af6aa6d73e, type: 3}
     enemyCount: 15
-    enemySpeed: 20
+    enemySpeed: 6
     enemyDamage: 40
     enemyHealth: 120
     spawnBoss: 1
@@ -8312,17 +8312,17 @@ MonoBehaviour:
   - waveName: Wave 4
     enemyPrefab: {fileID: 2221813642870138099, guid: c2131175400fb4bfda0798af6aa6d73e, type: 3}
     enemyCount: 20
-    enemySpeed: 20
+    enemySpeed: 7
     enemyDamage: 50
     enemyHealth: 120
     spawnBoss: 1
     bossPrefab: {fileID: 7062261965063567351, guid: b2e24bf56ce0a4ca8a70145fd52c7524, type: 3}
     bossCount: 2
     bossSpawnDelayAfter: 1
-  - waveName: Wave 4
+  - waveName: Wave 5
     enemyPrefab: {fileID: 2221813642870138099, guid: c2131175400fb4bfda0798af6aa6d73e, type: 3}
     enemyCount: 30
-    enemySpeed: 20
+    enemySpeed: 7.5
     enemyDamage: 50
     enemyHealth: 120
     spawnBoss: 0

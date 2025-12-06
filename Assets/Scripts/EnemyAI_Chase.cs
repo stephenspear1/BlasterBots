@@ -1,4 +1,3 @@
-// Assets/Scripts/Enemies/EnemyAI_Chase.cs
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
@@ -18,30 +17,63 @@ public class EnemyAI_Chase : MonoBehaviour
         var p = GameObject.FindWithTag("Player");
         player = p ? p.transform : null;
         rb = GetComponent<Rigidbody>();
+
+        // optional safety
+        if (rb == null) Debug.LogError("[EnemyAI_Chase] missing Rigidbody");
     }
 
     void Update()
     {
-        if (!player) return;
+        // decrement attack timer on real time (frame) basis
         attackTimer -= Time.deltaTime;
 
+        // attack check handled in Update (non-physics)
+        if (player == null) return;
+
         Vector3 dir = player.position - transform.position;
-        dir.y = 0;
-        if (dir.magnitude > attackRange)
+        dir.y = 0f;
+
+        float sqrDist = dir.sqrMagnitude;
+        float attackRangeSqr = attackRange * attackRange;
+
+        if (sqrDist <= attackRangeSqr)
         {
-            Vector3 move = dir.normalized * moveSpeed * Time.deltaTime;
-            rb.MovePosition(transform.position + move);
-            transform.forward = Vector3.Lerp(transform.forward, dir.normalized, 8f * Time.deltaTime);
+            TryAttack();
+        }
+        // movement happens in FixedUpdate for physics consistency
+    }
+
+    void FixedUpdate()
+    {
+        if (player == null || rb == null) return;
+
+        Vector3 dir = player.position - rb.position;
+        dir.y = 0f;
+
+        float sqrDist = dir.sqrMagnitude;
+        float attackRangeSqr = attackRange * attackRange;
+
+        if (sqrDist > attackRangeSqr)
+        {
+            Vector3 moveDir = dir.normalized;
+            Vector3 next = rb.position + moveDir * moveSpeed * Time.fixedDeltaTime;
+            rb.MovePosition(next);
+
+            // rotate smoothly using physics-friendly MoveRotation
+            Quaternion targetRot = Quaternion.LookRotation(moveDir);
+            Quaternion newRot = Quaternion.Slerp(rb.rotation, targetRot, 8f * Time.fixedDeltaTime);
+            rb.MoveRotation(newRot);
         }
         else
         {
-            TryAttack();
+            // optional: ensure velocity zero when in attack range
+            rb.linearVelocity = Vector3.zero;
         }
     }
 
     void TryAttack()
     {
-        if (attackTimer <= 0f)
+        if (attackTimer <= 0f && player != null)
         {
             var hs = player.GetComponent<HealthSystem>();
             if (hs != null) hs.TakeDamage(damage);
