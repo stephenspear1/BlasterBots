@@ -5,6 +5,7 @@ public class PlayerMovement : MonoBehaviour
 {
     [Header("Movement Settings")]
     public float moveSpeed = 6f;
+    public float defaultMoveSpeed = 6f;
     public float rotationSpeed = 12f;
     public LayerMask aimLayerMask; // Layer(s) to aim at (e.g., ground)
     public float aimRayMaxDistance = 200f;
@@ -54,6 +55,13 @@ public class PlayerMovement : MonoBehaviour
         Vector3 velocity = moveDir * moveSpeed;
         velocity.y = rb.linearVelocity.y;
         rb.linearVelocity = velocity;
+    }
+
+    public void ResetToDefault()
+    {
+        // Reset movement speed to the original base speed
+        moveSpeed = defaultMoveSpeed;
+
     }
 
     void RotateToMouse()

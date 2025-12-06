@@ -4,6 +4,7 @@ using UnityEngine;
 public class EnemyHealth : MonoBehaviour
 {
     public float maxHealth = 30f;
+    public int pointsAwarded = 10;
     float current;
 
     void Start()
@@ -19,7 +20,7 @@ public class EnemyHealth : MonoBehaviour
 
     void Die()
     {
-        ScoreManager.Instance?.AddPoints(50); // award points
+        ScoreManager.Instance?.AddPoints(pointsAwarded); // award points
         Destroy(gameObject);
     }
 }

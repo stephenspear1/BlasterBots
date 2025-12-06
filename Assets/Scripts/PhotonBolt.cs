@@ -19,5 +19,12 @@ public class PhotonBolt : MonoBehaviour
             // spawn impact VFX, sound...
             Destroy(gameObject);
         }
+        var boss = other.GetComponent<BossHealth>();
+        if (boss != null)
+        {
+            boss.TakeDamage(damage);
+            // spawn impact VFX, sound...
+            Destroy(gameObject);
+        }
     }
 }
