@@ -19,6 +19,7 @@ public class ScoreManager : MonoBehaviour
     /// </summary>
     public void AddPoints(int pts)
     {
+        //audioSource.PlayOneShot(popSound);
         score += pts;
         if (score < 0) score = 0;
         UIManager.Instance?.UpdateScore(score);

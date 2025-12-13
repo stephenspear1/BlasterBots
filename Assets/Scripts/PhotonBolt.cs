@@ -4,6 +4,8 @@ public class PhotonBolt : MonoBehaviour
 {
     public float lifeTime = 3f;
     public int damage = 10;
+    public AudioClip popSound;
+    public AudioSource audioSource;
 
     void Start() => Destroy(gameObject, lifeTime);
 
@@ -11,7 +13,7 @@ public class PhotonBolt : MonoBehaviour
     {
         if (other.CompareTag("Player")) return;
         Destroy(gameObject);
-
+        
         var enemy = other.GetComponent<EnemyHealth>();
         if (enemy != null)
         {

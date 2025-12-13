@@ -21,7 +21,8 @@ public class HealthSystem : MonoBehaviour
     public float regenDelay;              // runtime effective delay (initializes from baseRegenDelay)
     [Tooltip("Health per second restored during regeneration.")]
     public float shieldRegenRate = 10f;   // 10 HP / sec default
-
+    public AudioClip shieldHitSound;
+    public AudioSource audioSource;
     float timeSinceDamage = 0f;
     bool isRegenerating = false;
 
@@ -83,6 +84,8 @@ public class HealthSystem : MonoBehaviour
         timeSinceDamage = 0f;
         isRegenerating = false;
 
+        if (audioSource && shieldHitSound)
+            audioSource.PlayOneShot(shieldHitSound);
         UpdateUI();
 
         if (currentHealth <= 0)
@@ -106,6 +109,7 @@ public class HealthSystem : MonoBehaviour
     void Die()
     {
         Debug.Log("[HealthSystem] Player died.");
+        GameOverController.Instance?.ShowGameOver();
         // Notify GameManager to handle death + restart logic
         GameManager.Instance?.HandlePlayerDeath();
     }

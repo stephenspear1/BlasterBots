@@ -1,6 +1,8 @@
+// Assets/Scripts/WaveManager.cs
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 [System.Serializable]
 public class WaveDefinition
@@ -36,30 +38,122 @@ public class WaveManager : MonoBehaviour
     private bool spawnScheduled = false;
     private int currentWaveIndex = 0; // 0-based; wave 1 = index 0
 
+    Coroutine runningSpawner = null;
+
+    void Awake()
+    {
+        // listen for scene loads so persistent instances can rebind
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
     void Start()
     {
-        // populate spawnPoints from SpawnPoints parent (preferred)
-        var spParent = GameObject.Find("SpawnPoints");
-        if (spParent != null)
+        EnsureSpawnPoints();
+        if (waves == null || waves.Length == 0)
+            Debug.LogError("[WaveManager] No waves defined! Please set up waves in the inspector.");
+
+        // Start the first wave only if we have spawnPoints and waves defined
+        if (HasValidSpawnPoints() && waves != null && waves.Length > 0)
         {
-            var childTransforms = spParent.GetComponentsInChildren<Transform>();
-            List<Transform> temp = new List<Transform>();
-            foreach (var t in childTransforms)
-                if (t != spParent.transform) temp.Add(t);
-            spawnPoints = temp.ToArray();
+            runningSpawner = StartCoroutine(SpawnWaveFromDefinition(currentWaveIndex));
+        }
+        else
+        {
+            Debug.LogWarning("[WaveManager] Not starting spawner: no valid spawn points or waves missing.");
+        }
+    }
+
+    void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    void OnSceneLoaded(Scene s, LoadSceneMode m)
+    {
+        // rebind scene-specific references if required (useful if this manager is persistent)
+        Debug.Log("[WaveManager] Scene loaded - rebinding spawn points.");
+        EnsureSpawnPoints();
+
+        // reset state when scene changes so we don't start mid-wave
+        StopAllSpawning();
+        active.Clear();
+        currentWaveIndex = 0;
+        spawnScheduled = false;
+        spawning = false;
+
+        if (HasValidSpawnPoints() && waves != null && waves.Length > 0)
+        {
+            runningSpawner = StartCoroutine(SpawnWaveFromDefinition(currentWaveIndex));
+        }
+    }
+
+    /// <summary>
+    /// Ensure spawnPoints is populated by looking for a parent named "SpawnPoints"
+    /// or by finding GameObjects tagged "SpawnPoint". Accepts only non-null Transforms.
+    /// </summary>
+    void EnsureSpawnPoints()
+    {
+        // prune any null entries if inspector had references to destroyed Transforms
+        if (spawnPoints != null && spawnPoints.Length > 0)
+        {
+            List<Transform> tmp = new List<Transform>();
+            foreach (var t in spawnPoints)
+                if (t != null) tmp.Add(t);
+            spawnPoints = tmp.ToArray();
         }
 
-        // sanity checks
-        if (waves == null || waves.Length == 0)
-            Debug.LogError("[WaveManager] No waves defined! Please set up 5 wave entries in the inspector.");
+        // If still empty, try to find a parent container "SpawnPoints" in scene
+        if (spawnPoints == null || spawnPoints.Length == 0)
+        {
+            var spParent = GameObject.Find("SpawnPoints");
+            if (spParent != null)
+            {
+                var children = spParent.GetComponentsInChildren<Transform>();
+                List<Transform> tmp = new List<Transform>();
+                foreach (var t in children)
+                    if (t != spParent.transform) tmp.Add(t);
+                spawnPoints = tmp.ToArray();
+            }
+        }
 
-        StartCoroutine(SpawnWaveFromDefinition(currentWaveIndex));
+        // fallback: look for objects tagged "SpawnPoint"
+        if (spawnPoints == null || spawnPoints.Length == 0)
+        {
+            var tagged = GameObject.FindGameObjectsWithTag("SpawnPoint");
+            if (tagged != null && tagged.Length > 0)
+            {
+                List<Transform> tmp = new List<Transform>();
+                foreach (var go in tagged) if (go != null) tmp.Add(go.transform);
+                spawnPoints = tmp.ToArray();
+            }
+        }
+
+        if (!HasValidSpawnPoints())
+        {
+            Debug.LogWarning("[WaveManager] No valid spawn points found in scene. Please create a parent named 'SpawnPoints' with child Transforms or tag spawn point GameObjects with 'SpawnPoint'.");
+        }
+        else
+        {
+            Debug.Log($"[WaveManager] Found {spawnPoints.Length} spawn points.");
+        }
+    }
+
+    bool HasValidSpawnPoints()
+    {
+        return spawnPoints != null && spawnPoints.Length > 0;
     }
 
     IEnumerator SpawnWaveFromDefinition(int waveIndex)
     {
         if (spawning) yield break;
         if (waveIndex < 0 || waveIndex >= waves.Length) yield break;
+
+        // guard: ensure we have valid spawn points
+        if (!HasValidSpawnPoints())
+        {
+            Debug.LogWarning("[WaveManager] SpawnWave aborted: no spawn points.");
+            yield break;
+        }
 
         spawning = true;
         WaveDefinition w = waves[waveIndex];
@@ -72,8 +166,23 @@ public class WaveManager : MonoBehaviour
         // spawn normal enemies
         for (int i = 0; i < w.enemyCount; i++)
         {
-            Transform sp = spawnPoints[Random.Range(0, spawnPoints.Length)];
+            // pick a random valid spawn transform
+            Transform sp = null;
+            int tries = 0;
+            while (tries < 10 && (sp == null || sp == spawnPoints[Mathf.Clamp(Random.Range(0, spawnPoints.Length), 0, spawnPoints.Length - 1)] && sp == null))
+            {
+                sp = spawnPoints[Random.Range(0, spawnPoints.Length)];
+                tries++;
+            }
+
+            if (sp == null)
+            {
+                Debug.LogWarning("[WaveManager] Couldn't find a non-null spawn point for enemy. Skipping spawn.");
+                continue;
+            }
+
             GameObject go = Instantiate(w.enemyPrefab, sp.position, Quaternion.identity);
+
             // apply per-wave overrides if components exist
             var ai = go.GetComponent<EnemyAI_Chase>();
             if (ai != null)
@@ -95,24 +204,26 @@ public class WaveManager : MonoBehaviour
             for (int b = 0; b < w.bossCount; b++)
             {
                 Transform sp = spawnPoints[Random.Range(0, spawnPoints.Length)];
+                if (sp == null)
+                {
+                    Debug.LogWarning("[WaveManager] Boss spawn point was null, skipping boss spawn.");
+                    continue;
+                }
                 GameObject boss = Instantiate(w.bossPrefab, sp.position, Quaternion.identity);
                 active.Add(boss);
-                // optional per-boss config can be set on prefab
                 yield return new WaitForSeconds(0.5f);
             }
-            UIManager.Instance?.ShowBossWarning();
         }
 
         spawning = false;
         spawnScheduled = false;
-
-        // Wait for wave completion. Update() schedules next wave after active cleared.
+        runningSpawner = null;
         yield break;
     }
 
     void Update()
     {
-        // cleanup dead entries
+        // cleanup null/destroyed entries
         active.RemoveAll(e => e == null);
 
         // If no active enemies and not spawning and we didn't already schedule next wave
@@ -146,7 +257,8 @@ public class WaveManager : MonoBehaviour
         if (currentWaveIndex < waves.Length - 1)
         {
             currentWaveIndex++;
-            StartCoroutine(SpawnWaveFromDefinition(currentWaveIndex));
+            if (runningSpawner != null) StopCoroutine(runningSpawner);
+            runningSpawner = StartCoroutine(SpawnWaveFromDefinition(currentWaveIndex));
         }
     }
 
@@ -154,8 +266,7 @@ public class WaveManager : MonoBehaviour
     {
         // short delay for clarity
         yield return new WaitForSeconds(0.5f);
-        UIManager.Instance?.ShowVictoryScreen();
-        // You can call GameManager.Instance.ResetRun() if you want to reset vars when they press Restart
+        VictoryController.Instance?.ShowVictory();
         yield break;
     }
 
@@ -167,30 +278,53 @@ public class WaveManager : MonoBehaviour
 
     public void UnregisterEnemy(GameObject enemy)
     {
+
         if (active.Contains(enemy)) active.Remove(enemy);
+    }
+
+    // stop and cleanup any running coroutines used for spawning
+    void StopAllSpawning()
+    {
+        if (runningSpawner != null)
+        {
+            StopCoroutine(runningSpawner);
+            runningSpawner = null;
+        }
+        spawning = false;
+        spawnScheduled = false;
     }
 
     public void ResetToWave1()
     {
-        // Stop any spawning coroutines
-        StopAllCoroutines();
+        Debug.Log("[WaveManager] ResetToWave1() called.");
 
-        // Destroy any active enemies
-        foreach (var e in active)
+        // stop any running spawners/coroutines
+        StopAllSpawning();
+
+        // clear active tracking and destroy leftover enemies if any
+        for (int i = active.Count - 1; i >= 0; i--)
         {
-            if (e != null) Destroy(e);
+            var go = active[i];
+            if (go != null) Destroy(go);
         }
         active.Clear();
 
-        // Reset internal state
+        // reset internal state
         spawning = false;
         spawnScheduled = false;
         currentWaveIndex = 0;
 
-        // Update UI
-        UIManager.Instance?.UpdateWave(1);
+        // ensure spawnPoints are valid for this scene
+        EnsureSpawnPoints();
 
-        // Start first wave
-        StartCoroutine(SpawnWaveFromDefinition(currentWaveIndex));
+        // start first wave if valid
+        if (HasValidSpawnPoints() && waves != null && waves.Length > 0)
+        {
+            runningSpawner = StartCoroutine(SpawnWaveFromDefinition(currentWaveIndex));
+        }
+        else
+        {
+            Debug.LogWarning("[WaveManager] ResetToWave1 aborted - no valid spawn points or waves.");
+        }
     }
 }

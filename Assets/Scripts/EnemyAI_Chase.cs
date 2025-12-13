@@ -8,12 +8,15 @@ public class EnemyAI_Chase : MonoBehaviour
     public float attackCooldown = 1.0f;
     public float attackRange = 1.2f;
 
+    Animator anim;
+
     Transform player;
     Rigidbody rb;
     float attackTimer;
 
     void Start()
     {
+        anim = GetComponentInChildren<Animator>();
         var p = GameObject.FindWithTag("Player");
         player = p ? p.transform : null;
         rb = GetComponent<Rigidbody>();
@@ -55,6 +58,7 @@ public class EnemyAI_Chase : MonoBehaviour
 
         if (sqrDist > attackRangeSqr)
         {
+            anim.Play("WalkForward");
             Vector3 moveDir = dir.normalized;
             Vector3 next = rb.position + moveDir * moveSpeed * Time.fixedDeltaTime;
             rb.MovePosition(next);
@@ -75,6 +79,7 @@ public class EnemyAI_Chase : MonoBehaviour
     {
         if (attackTimer <= 0f && player != null)
         {
+            anim.Play("Attack");
             var hs = player.GetComponent<HealthSystem>();
             if (hs != null) hs.TakeDamage(damage);
             attackTimer = attackCooldown;

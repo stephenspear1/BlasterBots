@@ -7,6 +7,8 @@ public class EnemyHealth : MonoBehaviour
     public int pointsAwarded = 10;
     float current;
 
+    public AudioClip popSound;
+    public AudioSource audioSource;
     void Start()
     {
         current = maxHealth;
@@ -20,6 +22,7 @@ public class EnemyHealth : MonoBehaviour
 
     void Die()
     {
+        AudioSource.PlayClipAtPoint(popSound, transform.position, 1f);
         ScoreManager.Instance?.AddPoints(pointsAwarded); // award points
         Destroy(gameObject);
     }

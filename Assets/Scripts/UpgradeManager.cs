@@ -11,7 +11,8 @@ public class UpgradeManager : MonoBehaviour
     public TMP_Text pointsText;
     public GameObject crosshair; // optional: assign your crosshair UI image here
     public int costPerTier = 100;
-
+    public AudioClip upgradeConfirmSound;
+    public AudioSource uiAudioSource;   
     // tiers / state
     public int turboTier = 0;
     public int platingTier = 0;
@@ -92,6 +93,7 @@ public class UpgradeManager : MonoBehaviour
     {
         if (ScoreManager.Instance == null || ScoreManager.Instance.Points < cost) return false;
         ScoreManager.Instance.AddPoints(-cost);
+        uiAudioSource.PlayOneShot(upgradeConfirmSound);
         return true;
     }
 

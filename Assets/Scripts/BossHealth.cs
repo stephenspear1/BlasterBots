@@ -11,7 +11,9 @@ public class BossHealth : MonoBehaviour
     int currentHealth;
 
     [Header("Scoring")]
-    public int pointsOnDeath = 250;
+    public int pointsOnDeath = 100;
+    public AudioClip popSound;
+    public AudioSource audioSource;
 
     void Start()
     {
@@ -37,13 +39,10 @@ public class BossHealth : MonoBehaviour
     {
         // Award points
         ScoreManager.Instance?.AddPoints(pointsOnDeath);
-
+        AudioSource.PlayClipAtPoint(popSound, transform.position, 1f);
         // Unregister from WaveManager so it won't be counted as active
         var wm = FindObjectOfType<WaveManager>();
         wm?.UnregisterEnemy(this.gameObject);
-
-        // Play death VFX / sound (optional)
-        // Instantiate(deathVfx, transform.position, Quaternion.identity);
 
         Destroy(gameObject);
     }

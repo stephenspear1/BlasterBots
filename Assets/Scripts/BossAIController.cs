@@ -3,10 +3,8 @@ using System.Collections;
 
 /// <summary>
 /// Simplified Boss AI: slow chase + single melee attack.
-/// - No NavMeshAgent dependency.
-/// - Single "melee" attack with windup and cooldown.
-/// - Deals damage to player via HealthSystem.TakeDamage(float).
-/// - Visuals (meleeVFX) are optional.
+/// Minimal animation integration: calls animator states "WalkForward", "Attack", and "Idle".
+/// Prevents Update from overriding attack animation by using an isAttacking flag.
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class BossAIController : MonoBehaviour
@@ -24,10 +22,19 @@ public class BossAIController : MonoBehaviour
     public float meleeDamage = 20f;          // damage to apply
     public float meleeCooldown = 3.0f;       // time between melee attempts
     public float meleeWindup = 0.35f;        // telegraph before damage applies
-    public GameObject meleeVFX;              // optional VFX prefab spawned at boss position
 
     // internals
     float meleeTimer = 0f;
+
+    // --- animation helpers (minimal additions) ---
+    Animator animator;
+    string currentState = "";
+    readonly string STATE_IDLE = "Idle";
+    readonly string STATE_WALK = "WalkForward";
+    readonly string STATE_ATTACK = "Attack";
+
+    // prevents Update from stomping the attack animation
+    bool isAttacking = false;
 
     void Start()
     {
@@ -38,6 +45,11 @@ public class BossAIController : MonoBehaviour
         }
 
         meleeTimer = 0f;
+
+        // animator: find the Animator on a child model (do not put Animator on root)
+        animator = GetComponentInChildren<Animator>();
+        if (animator == null)
+            Debug.LogWarning("[BossAIController] Animator not found in children. States will be skipped.");
     }
 
     void Update()
@@ -56,15 +68,24 @@ public class BossAIController : MonoBehaviour
             transform.forward = forward;
         }
 
-        // move toward player if outside stopping distance
-        if (dist > stoppingDistance + 0.1f)
+        // If currently performing attack, skip movement->state overrides
+        if (!isAttacking)
         {
-            transform.position += transform.forward * moveSpeed * Time.deltaTime;
+            // move toward player if outside stopping distance
+            if (dist > stoppingDistance + 0.1f)
+            {
+                transform.position += transform.forward * moveSpeed * Time.deltaTime;
+                RequestState(STATE_WALK); // play walk when moving
+            }
+            else
+            {
+                RequestState(STATE_IDLE); // stopped
+            }
         }
 
-        // melee logic
+        // melee logic (can still start while not attacking)
         meleeTimer -= Time.deltaTime;
-        if (dist <= meleeRange && meleeTimer <= 0f)
+        if (dist <= meleeRange && meleeTimer <= 0f && !isAttacking)
         {
             StartCoroutine(DoMelee());
             meleeTimer = meleeCooldown;
@@ -73,10 +94,12 @@ public class BossAIController : MonoBehaviour
 
     IEnumerator DoMelee()
     {
-        // windup / telegraph
-        // (play telegraph animation or VFX here if you want)
-        if (meleeVFX != null)
-            Instantiate(meleeVFX, transform.position + Vector3.down * 0.5f, Quaternion.identity);
+        // set attacking flag so Update doesn't override animation
+        isAttacking = true;
+
+        // switch to attack animation before windup
+        RequestState(STATE_ATTACK);
+
 
         yield return new WaitForSeconds(meleeWindup);
 
@@ -100,8 +123,42 @@ public class BossAIController : MonoBehaviour
             }
         }
 
-        // small recovery (optional)
-        yield return null;
+        // small recovery (optional) — wait a tiny bit so the attack animation can finish a frame
+        yield return new WaitForSeconds(0.1f);
+
+        // clear attacking state so Update resumes normal behavior
+        isAttacking = false;
+
+        yield break;
+    }
+
+    // minimal helper: only call Play when state actually changes
+    void RequestState(string nextState)
+    {
+        if (animator == null) return;
+        if (nextState == currentState) return;
+
+        int layer = 0;
+        int hash = Animator.StringToHash(nextState);
+        if (animator.HasState(layer, hash))
+        {
+            animator.Play(nextState);
+            currentState = nextState;
+        }
+        else
+        {
+            // if requested state missing, try idle fallback (prevents errors)
+            int idleHash = Animator.StringToHash(STATE_IDLE);
+            if (animator.HasState(layer, idleHash))
+            {
+                animator.Play(STATE_IDLE);
+                currentState = STATE_IDLE;
+            }
+            else
+            {
+                // nothing to do
+            }
+        }
     }
 
     void OnDrawGizmosSelected()

@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Reflection;
 
 public class CameraOrbit : MonoBehaviour
 {
@@ -14,6 +15,10 @@ public class CameraOrbit : MonoBehaviour
 
     UpgradeManager upgradeMgr;
 
+    // internal cached cursor state so we don't reassign every frame
+    bool cursorLocked = true;
+    bool cursorVisible = false;
+
     void Start()
     {
         upgradeMgr = UpgradeManager.Instance;
@@ -23,26 +28,29 @@ public class CameraOrbit : MonoBehaviour
         pitch = angles.x;
 
         // Initial gameplay cursor state
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
+        SetCursorLocked(true);
     }
 
     void LateUpdate()
     {
         if (!target) return;
 
-        // If upgrade menu is open, STOP camera rotation AND release cursor
-        if (upgradeMgr != null && upgradeMgr.IsOpen)
+        // If the game is paused (timescale == 0) then release cursor & stop camera.
+        if (Mathf.Approximately(Time.timeScale, 0f))
         {
-            // Make sure cursor is visible and free for UI
-            Cursor.visible = true;
-            Cursor.lockState = CursorLockMode.None;
+            SetCursorLocked(false);
+            return;
+        }
+
+        // If upgrade menu is open, STOP camera rotation AND release cursor.
+        if (IsUpgradeOpen())
+        {
+            SetCursorLocked(false);
             return;
         }
 
         // Gameplay mode → lock/hide cursor if not manually unlocked
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
+        SetCursorLocked(true);
 
         // Mouse look input
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
@@ -61,5 +69,56 @@ public class CameraOrbit : MonoBehaviour
         // Aim camera at player's head
         if (cameraTransform)
             cameraTransform.LookAt(target.position + Vector3.up * 1.6f);
+    }
+
+    // safely determine if the UpgradeManager reports open (uses reflection to avoid compile errors)
+    bool IsUpgradeOpen()
+    {
+        if (upgradeMgr == null) return false;
+
+        // try property "IsOpen" first (public)
+        var prop = upgradeMgr.GetType().GetProperty("IsOpen", BindingFlags.Public | BindingFlags.Instance);
+        if (prop != null && prop.PropertyType == typeof(bool))
+        {
+            try { return (bool)prop.GetValue(upgradeMgr); }
+            catch { /* ignore reflection errors */ }
+        }
+
+        // try field "IsOpen" or "isOpen" (public or non-public)
+        var field = upgradeMgr.GetType().GetField("IsOpen", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                 ?? upgradeMgr.GetType().GetField("isOpen", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        if (field != null && field.FieldType == typeof(bool))
+        {
+            try { return (bool)field.GetValue(upgradeMgr); }
+            catch { /* ignore reflection errors */ }
+        }
+
+        // fallback: no info available -> assume closed
+        return false;
+    }
+
+    // helper: only set cursor state when it actually changes
+    void SetCursorLocked(bool locked)
+    {
+        if (locked)
+        {
+            if (!cursorLocked || cursorVisible)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+                cursorLocked = true;
+                cursorVisible = false;
+            }
+        }
+        else
+        {
+            if (cursorLocked || !cursorVisible)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+                cursorLocked = false;
+                cursorVisible = true;
+            }
+        }
     }
 }

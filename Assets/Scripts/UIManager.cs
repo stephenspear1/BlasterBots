@@ -16,9 +16,6 @@ public class UIManager : MonoBehaviour
     public TMP_Text waveText;
     public TMP_Text blasterStatusText;
 
-    [Header("Boss")]
-    public TMP_Text bossWarningText;
-
     [Header("Panels")]
     public GameObject victoryPanel;  // assign your victory panel here
 
@@ -44,19 +41,6 @@ public class UIManager : MonoBehaviour
         if (blasterStatusText) blasterStatusText.text = $"{current} / {max}";
     }
 
-    public void ShowBossWarning()
-    {
-        if (bossWarningText == null) return;
-        StopAllCoroutines();
-        StartCoroutine(BossWarningCoroutine());
-    }
-
-    IEnumerator BossWarningCoroutine()
-    {
-        bossWarningText.gameObject.SetActive(true);
-        yield return new WaitForSecondsRealtime(2f);
-        bossWarningText.gameObject.SetActive(false);
-    }
 
     public void ShowVictoryScreen()
     {
